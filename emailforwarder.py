@@ -64,16 +64,24 @@ def send_mail(u: User, messages: typing.List[bytes]):
         smtp_server.login(u.source, u.password)
         print(f'Successful SMTP login for {u}')
         try:
-            # msg = messages[0]
-            # lines = msg.decode().split(MSG_LINE_SEPARATOR)
-            # from_address_line = list(filter(lambda l: l.startswith('From: '), lines))[0]
-            # from_index = lines.index(from_address_line)
-            # lines[from_index] = f'From: {u.source}'
-            # lines.insert(from_index + 1, from_address_line.replace('From:', 'Reply-To:'))
-            # message = MSG_LINE_SEPARATOR.join(lines)
-            failures = smtp_server.sendmail(u.source, u.destination, messages[0])
-            for dst, reason in failures.items():
-                print(f'Failed to deliver message to {dst} due to {reason}')
+            for msg in messages:
+                lines = msg.decode().split(MSG_LINE_SEPARATOR)
+                from_address_line = list(filter(lambda l: l.lstrip().lower().startswith('from:'), lines))[0]
+                original_sender = from_address_line[6:]
+
+                # Set the "reply-to" line since the "from" line is going to look really funky, but only if it was not
+                # already set in the original email
+                if not any(line.lstrip().lower().startswith('reply-to:') for line in lines):
+                    from_index = lines.index(from_address_line)
+                    lines.insert(from_index + 1, f'Reply-To: {original_sender}')
+
+                # Rebuild the message bytes
+                message = MSG_LINE_SEPARATOR.join(lines).encode()
+
+                # Send the fixed email and report any errors
+                failures = smtp_server.sendmail(u.source, u.destination, message)
+                for dst, reason in failures.items():
+                    print(f'Failed to deliver message to {dst} due to {reason}')
         except Exception as e:
             print(f'Failed to send message from {u.source} -> {u.destination} due to {e}')
 
