@@ -82,6 +82,8 @@ def send_mail(u: User, messages: typing.List[bytes]):
                 failures = smtp_server.sendmail(u.source, u.destination, message)
                 for dst, reason in failures.items():
                     print(f'Failed to deliver message to {dst} due to {reason}')
+
+            print(f'Successfully forwarded {len(messages)} messages from {u.source} -> {u.destination}')
         except Exception as e:
             print(f'Failed to send message from {u.source} -> {u.destination} due to {e}')
 
